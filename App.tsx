@@ -261,17 +261,19 @@ const App: React.FC = () => {
       );
     }
 
-    // 2. Filter by Supplier
+    // 2. Filter by Supplier (Partial Match, Case Insensitive)
     if (supplierFilter) {
+      const filterLower = supplierFilter.toLowerCase();
       result = result.filter(order => 
-        order.supplier === supplierFilter
+        order.supplier.toLowerCase().includes(filterLower)
       );
     }
 
-    // 3. Filter by Customer
+    // 3. Filter by Customer (Partial Match, Case Insensitive)
     if (customerFilter) {
+      const filterLower = customerFilter.toLowerCase();
       result = result.filter(order => 
-        order.customer === customerFilter
+        order.customer.toLowerCase().includes(filterLower)
       );
     }
 
@@ -335,48 +337,44 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            {/* Supplier Filter */}
-            <div className="relative hidden md:block w-40 lg:w-48">
+            {/* Supplier Filter Input */}
+            <div className="relative hidden md:block">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Filter size={16} className="text-gray-400" />
               </div>
-              <select
+              <input
+                type="text"
+                list="suppliers-list"
+                placeholder="Fornecedor..."
                 value={supplierFilter}
                 onChange={(e) => setSupplierFilter(e.target.value)}
-                className="pl-10 pr-8 py-2 w-full bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none truncate"
-              >
-                <option value="">Todos Fornecedores</option>
+                className="pl-10 pr-4 py-2 w-32 lg:w-40 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-500"
+              />
+              <datalist id="suppliers-list">
                 {sortedSuppliers.map(s => (
-                  <option key={s.id} value={s.name}>{s.name}</option>
+                  <option key={s.id} value={s.name} />
                 ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+              </datalist>
             </div>
 
-            {/* Customer Filter */}
-            <div className="relative hidden md:block w-40 lg:w-48">
+            {/* Customer Filter Input */}
+            <div className="relative hidden md:block">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Users size={16} className="text-gray-400" />
               </div>
-              <select
+              <input
+                type="text"
+                list="customers-list"
+                placeholder="Cliente..."
                 value={customerFilter}
                 onChange={(e) => setCustomerFilter(e.target.value)}
-                className="pl-10 pr-8 py-2 w-full bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none truncate"
-              >
-                <option value="">Todos Clientes</option>
+                className="pl-10 pr-4 py-2 w-32 lg:w-40 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all placeholder-gray-500"
+              />
+              <datalist id="customers-list">
                 {availableCustomers.map(c => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c} />
                 ))}
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
+              </datalist>
             </div>
 
             {/* Order Search */}
@@ -389,7 +387,7 @@ const App: React.FC = () => {
                 placeholder="Nº Pedido..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-32 sm:w-36 transition-all"
+                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-32 sm:w-36 transition-all placeholder-gray-500"
               />
             </div>
             
