@@ -6,13 +6,21 @@ interface OrderFormProps {
   nextOrderNumber: number;
   suppliers: Supplier[];
   commercials: Commercial[];
+  availableCustomers: string[];
   onSave: (
     data: { date: string; orderNumber: number; supplier: string; customer: string; material: string; serviceDescription: string; commercial: string }
   ) => void;
   onCancel: () => void;
 }
 
-export const OrderForm: React.FC<OrderFormProps> = ({ nextOrderNumber, suppliers, commercials, onSave, onCancel }) => {
+export const OrderForm: React.FC<OrderFormProps> = ({ 
+  nextOrderNumber, 
+  suppliers, 
+  commercials, 
+  availableCustomers,
+  onSave, 
+  onCancel 
+}) => {
   const [date, setDate] = useState<string>('');
   const [supplier, setSupplier] = useState<string>('');
   const [material, setMaterial] = useState<string>('');
@@ -20,12 +28,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ nextOrderNumber, suppliers
   const [customer, setCustomer] = useState<string>('');
   const [commercial, setCommercial] = useState<string>('');
 
-  // Sort suppliers alphabetically
-  const sortedSuppliers = useMemo(() => {
-    return [...suppliers].sort((a, b) => a.name.localeCompare(b.name));
-  }, [suppliers]);
-
-  // Sort commercials alphabetically
+  // Commercials sorted alphabetically
   const sortedCommercials = useMemo(() => {
     return [...commercials].sort((a, b) => a.name.localeCompare(b.name));
   }, [commercials]);
@@ -35,14 +38,15 @@ export const OrderForm: React.FC<OrderFormProps> = ({ nextOrderNumber, suppliers
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
     
-    if (sortedSuppliers.length > 0) {
-      setSupplier(sortedSuppliers[0].name);
+    // Use the first supplier from the list (which is passed already sorted by recency)
+    if (suppliers.length > 0) {
+      setSupplier(suppliers[0].name);
     }
 
     if (sortedCommercials.length > 0) {
       setCommercial(sortedCommercials[0].name);
     }
-  }, [sortedSuppliers, sortedCommercials]);
+  }, [suppliers, sortedCommercials]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,13 +89,13 @@ export const OrderForm: React.FC<OrderFormProps> = ({ nextOrderNumber, suppliers
 
       <div className="space-y-1">
         <label className="block text-xs font-medium text-gray-700">Fornecedor</label>
-        {sortedSuppliers.length > 0 ? (
+        {suppliers.length > 0 ? (
           <select
             value={supplier}
             onChange={(e) => setSupplier(e.target.value)}
             className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           >
-            {sortedSuppliers.map((s) => (
+            {suppliers.map((s) => (
               <option key={s.id} value={s.name}>{s.name}</option>
             ))}
           </select>
@@ -131,11 +135,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({ nextOrderNumber, suppliers
           <input
             type="text"
             required
+            list="customer-suggestions"
             value={customer}
             onChange={(e) => setCustomer(e.target.value)}
             placeholder="Nome do cliente"
             className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
           />
+          <datalist id="customer-suggestions">
+            {availableCustomers.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
         </div>
         <div className="space-y-1">
           <label className="block text-xs font-medium text-gray-700">Comercial</label>
@@ -163,7 +173,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ nextOrderNumber, suppliers
         </Button>
         <Button 
           type="button"
-          disabled={sortedSuppliers.length === 0 || !customer || !material || sortedCommercials.length === 0}
+          disabled={suppliers.length === 0 || !customer || !material || sortedCommercials.length === 0}
           onClick={handleSubmit}
         >
           Gravar

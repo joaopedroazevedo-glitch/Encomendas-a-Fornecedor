@@ -449,8 +449,9 @@ const App: React.FC = () => {
       >
         <OrderForm 
           nextOrderNumber={nextOrderNumber}
-          suppliers={suppliers}
+          suppliers={sortedSuppliers}
           commercials={commercials}
+          availableCustomers={availableCustomers}
           onSave={handleAddOrder}
           onCancel={() => setIsOrderModalOpen(false)}
         />
