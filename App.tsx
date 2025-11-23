@@ -163,6 +163,12 @@ const App: React.FC = () => {
   const handleExportOrder = (order: Order) => {
     const doc = new jsPDF();
 
+    // --- Supplier Header (Centered) ---
+    // Y = 60
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.text(order.supplier, 105, 60, { align: "center" });
+
     // --- Order Number Section ---
     // Y = 80
     doc.setFontSize(14);
