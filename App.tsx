@@ -5,7 +5,7 @@ import { Modal } from './components/Modal';
 import { OrderForm } from './components/OrderForm';
 import { SupplierSettings } from './components/SupplierSettings';
 import { Button } from './components/Button';
-import { Plus, Settings, Search, AlertTriangle, Package } from 'lucide-react';
+import { Plus, Settings, Search, AlertTriangle, Package, Filter, Users } from 'lucide-react';
 import jsPDF from "jspdf";
 
 const INITIAL_SUPPLIERS: Supplier[] = [
@@ -37,6 +37,8 @@ const App: React.FC = () => {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [commercials, setCommercials] = useState<Commercial[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [supplierFilter, setSupplierFilter] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
   
   // Modals State
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
@@ -226,13 +228,94 @@ const App: React.FC = () => {
     return maxOrder + 1;
   }, [orders]);
 
-  // Filter orders based on search (Only by Order Number)
+  // Get list of unique customers sorted by MOST RECENT DATE DESCENDING
+  const availableCustomers = useMemo(() => {
+    const customerLastDate = new Map<string, string>();
+    
+    // Iterate orders to find the last date each customer was used
+    orders.forEach(order => {
+      if (!order.customer) return;
+      const current = customerLastDate.get(order.customer);
+      if (!current || order.date > current) {
+        customerLastDate.set(order.customer, order.date);
+      }
+    });
+
+    // Sort customers by date descending (newest first)
+    return Array.from(customerLastDate.keys()).sort((a, b) => {
+      const dateA = customerLastDate.get(a) || '';
+      const dateB = customerLastDate.get(b) || '';
+      return dateB.localeCompare(dateA);
+    });
+  }, [orders]);
+
+  // Filter orders based on search (Order Number), Supplier and Customer
+  // And ensure results are sorted by DATE DESCENDING
   const filteredOrders = useMemo(() => {
-    if (!searchQuery) return orders;
-    return orders.filter(order => 
-      order.orderNumber.toString().includes(searchQuery)
-    );
-  }, [orders, searchQuery]);
+    let result = orders;
+
+    // 1. Filter by Order Number (Search Query)
+    if (searchQuery) {
+      result = result.filter(order => 
+        order.orderNumber.toString().includes(searchQuery)
+      );
+    }
+
+    // 2. Filter by Supplier
+    if (supplierFilter) {
+      result = result.filter(order => 
+        order.supplier === supplierFilter
+      );
+    }
+
+    // 3. Filter by Customer
+    if (customerFilter) {
+      result = result.filter(order => 
+        order.customer === customerFilter
+      );
+    }
+
+    // Sort by Date Descending (Newest dates first), then by Order Number Descending
+    return [...result].sort((a, b) => {
+      const dateDiff = b.date.localeCompare(a.date);
+      if (dateDiff !== 0) return dateDiff;
+      return b.orderNumber - a.orderNumber;
+    });
+  }, [orders, searchQuery, supplierFilter, customerFilter]);
+
+  // Sorted suppliers for dropdown (Most recent usage first)
+  const sortedSuppliers = useMemo(() => {
+    // Calculate last usage date for each supplier
+    const lastUsageMap = new Map<string, string>();
+
+    orders.forEach(order => {
+      if (order.supplier) {
+        const current = lastUsageMap.get(order.supplier);
+        if (!current || order.date > current) {
+          lastUsageMap.set(order.supplier, order.date);
+        }
+      }
+    });
+
+    return [...suppliers].sort((a, b) => {
+      const dateA = lastUsageMap.get(a.name);
+      const dateB = lastUsageMap.get(b.name);
+
+      // If both have history, sort by most recent date
+      if (dateA && dateB) {
+        const dateDiff = dateB.localeCompare(dateA);
+        if (dateDiff !== 0) return dateDiff;
+        return a.name.localeCompare(b.name);
+      }
+      
+      // If only one has history, it comes first
+      if (dateA) return -1;
+      if (dateB) return 1;
+      
+      // If neither has history, sort alphabetically
+      return a.name.localeCompare(b.name);
+    });
+  }, [suppliers, orders]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
@@ -243,32 +326,80 @@ const App: React.FC = () => {
             <div className="bg-blue-600 p-2 rounded-lg text-white shadow-sm">
               <Package size={20} strokeWidth={2.5} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight text-gray-900">
+            <h1 className="text-xl font-bold tracking-tight text-gray-900 hidden md:block">
               Gestor de Encomendas
+            </h1>
+            <h1 className="text-xl font-bold tracking-tight text-gray-900 md:hidden">
+              Gestor
             </h1>
           </div>
           
           <div className="flex items-center gap-3">
-            <div className="relative hidden sm:block">
+            {/* Supplier Filter */}
+            <div className="relative hidden md:block w-40 lg:w-48">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Filter size={16} className="text-gray-400" />
+              </div>
+              <select
+                value={supplierFilter}
+                onChange={(e) => setSupplierFilter(e.target.value)}
+                className="pl-10 pr-8 py-2 w-full bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none truncate"
+              >
+                <option value="">Todos Fornecedores</option>
+                {sortedSuppliers.map(s => (
+                  <option key={s.id} value={s.name}>{s.name}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Customer Filter */}
+            <div className="relative hidden md:block w-40 lg:w-48">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Users size={16} className="text-gray-400" />
+              </div>
+              <select
+                value={customerFilter}
+                onChange={(e) => setCustomerFilter(e.target.value)}
+                className="pl-10 pr-8 py-2 w-full bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none truncate"
+              >
+                <option value="">Todos Clientes</option>
+                {availableCustomers.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Order Search */}
+            <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Search size={16} className="text-gray-400" />
               </div>
               <input
                 type="text"
-                placeholder="Pesquisar Nº Pedido..."
+                placeholder="Nº Pedido..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64 transition-all"
+                className="pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-32 sm:w-36 transition-all"
               />
             </div>
             
-            <div className="h-6 w-px bg-gray-200 mx-1"></div>
+            <div className="h-6 w-px bg-gray-200 mx-1 hidden sm:block"></div>
 
             <Button 
               variant="outline" 
               onClick={() => setIsSettingsModalOpen(true)}
               title="Configurações"
-              className="!p-2.5 border-gray-200 hover:bg-gray-50"
+              className="!p-2.5 border-gray-200 hover:bg-gray-50 hidden sm:inline-flex"
             >
               <Settings size={18} className="text-gray-600" />
             </Button>
@@ -277,9 +408,10 @@ const App: React.FC = () => {
               variant="primary" 
               onClick={() => setIsOrderModalOpen(true)} 
               icon={<Plus size={18} />}
-              className="shadow-sm hover:shadow bg-blue-600 hover:bg-blue-700 border-transparent"
+              className="shadow-sm hover:shadow bg-blue-600 hover:bg-blue-700 border-transparent whitespace-nowrap"
             >
-              Nova Encomenda
+              <span className="hidden sm:inline">Nova Encomenda</span>
+              <span className="sm:hidden">Novo</span>
             </Button>
           </div>
         </div>
@@ -290,8 +422,13 @@ const App: React.FC = () => {
         
         {/* Stats / Info Bar */}
         <div className="mb-4 flex items-center justify-between text-sm text-gray-500">
-          <div>
-            Total: <strong className="text-gray-900">{filteredOrders.length}</strong> encomendas
+          <div className="flex gap-2 items-center">
+            <span>Total: <strong className="text-gray-900">{filteredOrders.length}</strong></span>
+            {(searchQuery || supplierFilter || customerFilter) && (
+              <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                Filtro ativo
+              </span>
+            )}
           </div>
           <div className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-100">
             Próximo Nº: <span className="font-mono font-bold">#{nextOrderNumber}</span>
