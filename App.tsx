@@ -8,6 +8,14 @@ import { Button } from './components/Button';
 import { Plus, Settings, Search, AlertTriangle, Package, Filter, Users } from 'lucide-react';
 import jsPDF from "jspdf";
 
+// Helper for ID generation moved outside component
+const generateId = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
+
 const INITIAL_SUPPLIERS: Supplier[] = [
   { id: '1', name: 'Anjo & Carpinteiro' },
   { id: '2', name: 'Empaco' },
@@ -58,7 +66,23 @@ const App: React.FC = () => {
     }
 
     if (storedSuppliers) {
-      setSuppliers(JSON.parse(storedSuppliers));
+      const parsedSuppliers: Supplier[] = JSON.parse(storedSuppliers);
+      // Merge logic: Ensure INITIAL_SUPPLIERS are present even if using LocalStorage
+      // This fixes the issue where new default suppliers don't appear for existing users
+      const currentNames = new Set(parsedSuppliers.map(s => s.name.toLowerCase()));
+      const missingSuppliers = INITIAL_SUPPLIERS.filter(
+        init => !currentNames.has(init.name.toLowerCase())
+      );
+
+      if (missingSuppliers.length > 0) {
+        const newSuppliers = missingSuppliers.map(s => ({
+          ...s,
+          id: generateId() // Generate new ID to avoid conflicts
+        }));
+        setSuppliers([...parsedSuppliers, ...newSuppliers]);
+      } else {
+        setSuppliers(parsedSuppliers);
+      }
     } else {
       setSuppliers(INITIAL_SUPPLIERS);
     }
@@ -83,20 +107,31 @@ const App: React.FC = () => {
     localStorage.setItem('app_commercials', JSON.stringify(commercials));
   }, [commercials]);
 
-  // Helper for ID generation
-  const generateId = () => {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return Date.now().toString(36) + Math.random().toString(36).substring(2);
-  };
-
   // Handlers
   const handleAddOrder = (orderData: any) => {
+    // 1. Create the Order
     const newOrder: Order = {
       id: generateId(),
       ...orderData
     };
+
+    // 2. Auto-learn new suppliers:
+    // If the user typed a supplier that isn't in our list, add it automatically.
+    const inputSupplier = orderData.supplier.trim();
+    if (inputSupplier) {
+      const supplierExists = suppliers.some(
+        s => s.name.toLowerCase() === inputSupplier.toLowerCase()
+      );
+      
+      if (!supplierExists) {
+        const newSupplierObj: Supplier = {
+          id: generateId(),
+          name: inputSupplier
+        };
+        setSuppliers(prev => [...prev, newSupplierObj]);
+      }
+    }
+
     setOrders([newOrder, ...orders]);
     setIsOrderModalOpen(false);
   };

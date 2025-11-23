@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Supplier, Commercial } from '../types';
 import { Button } from './Button';
+import { List, X } from 'lucide-react';
 
 interface OrderFormProps {
   nextOrderNumber: number;
@@ -23,6 +24,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({
 }) => {
   const [date, setDate] = useState<string>('');
   const [supplier, setSupplier] = useState<string>('');
+  const [isCustomSupplier, setIsCustomSupplier] = useState(false);
   const [material, setMaterial] = useState<string>('');
   const [serviceDescription, setServiceDescription] = useState<string>('');
   const [customer, setCustomer] = useState<string>('');
@@ -33,21 +35,16 @@ export const OrderForm: React.FC<OrderFormProps> = ({
     return [...commercials].sort((a, b) => a.name.localeCompare(b.name));
   }, [commercials]);
 
-  // Set default date to today on mount and default selections
+  // Set default date to today on mount
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     setDate(today);
     
-    // Use the first supplier from the list (which is passed already sorted by recency)
-    // as the default value, but allow changing it via text input
-    if (suppliers.length > 0) {
-      setSupplier(suppliers[0].name);
-    }
-
+    // Default commercial if exists
     if (sortedCommercials.length > 0) {
       setCommercial(sortedCommercials[0].name);
     }
-  }, [suppliers, sortedCommercials]);
+  }, [sortedCommercials]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +59,17 @@ export const OrderForm: React.FC<OrderFormProps> = ({
       customer,
       commercial
     });
+  };
+
+  const handleSupplierChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value === '__NEW__') {
+      setIsCustomSupplier(true);
+      setSupplier('');
+    } else {
+      setSupplier(value);
+      setIsCustomSupplier(false);
+    }
   };
 
   return (
@@ -90,20 +98,46 @@ export const OrderForm: React.FC<OrderFormProps> = ({
 
       <div className="space-y-1">
         <label className="block text-xs font-medium text-gray-700">Fornecedor</label>
-        <input
-          type="text"
-          required
-          list="supplier-suggestions"
-          value={supplier}
-          onChange={(e) => setSupplier(e.target.value)}
-          placeholder="Selecione ou escreva..."
-          className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-        />
-        <datalist id="supplier-suggestions">
-          {suppliers.map((s) => (
-            <option key={s.id} value={s.name} />
-          ))}
-        </datalist>
+        {!isCustomSupplier ? (
+          <select
+            required
+            value={supplier}
+            onChange={handleSupplierChange}
+            className="w-full px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          >
+            <option value="" disabled>Selecione um fornecedor...</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.name}>{s.name}</option>
+            ))}
+            <option value="__NEW__" className="font-semibold text-blue-600 bg-blue-50">
+              ➕ Novo Fornecedor...
+            </option>
+          </select>
+        ) : (
+          <div className="flex gap-2">
+            <input
+              type="text"
+              required
+              autoFocus
+              value={supplier}
+              onChange={(e) => setSupplier(e.target.value)}
+              placeholder="Nome do novo fornecedor..."
+              className="flex-1 px-3 py-2 bg-white text-gray-900 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={() => {
+                setIsCustomSupplier(false);
+                setSupplier('');
+              }}
+              title="Voltar à lista"
+              className="px-3"
+            >
+              <X size={18} />
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-1">
